@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6366f1"/>
+      <stop offset="100%" style="stop-color:#8b5cf6"/>
+    </linearGradient>
+  </defs>
+  <!-- Rounded square background -->
+  <rect x="4" y="4" width="120" height="120" rx="24" fill="url(#bg)"/>
+  <!-- M letter for Markdown -->
+  <path d="M28 88V40h12l14 24 14-24h12v48h-12V60l-14 22-14-22v28H28z" fill="white"/>
+  <!-- Down arrow (markdown symbol) -->
+  <path d="M92 56v20l12-12-4-4-4 4V56h-4zm0 20l-4 4 8 8 8-8-4-4-4 4-4-4z" fill="white" opacity="0.9"/>
+</svg>

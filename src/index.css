@@ -1,0 +1,112 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #6366f1;
+  --color-accent: #8b5cf6;
+}
+
+/* Custom scrollbar */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: #4b5563;
+  border-radius: 4px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+}
+
+/* Modal animation */
+.animate-modal-in {
+  animation: modalIn 0.2s ease-out;
+}
+@keyframes modalIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Markdown Preview Styles */
+.prose-custom h1 {
+  @apply text-3xl font-bold text-gray-800 border-b-2 border-primary pb-3 mb-6 mt-0;
+}
+.prose-custom h2 {
+  @apply text-2xl font-semibold text-gray-800 border-b border-gray-200 pb-2 mb-4 mt-8;
+}
+.prose-custom h3 {
+  @apply text-xl font-semibold text-gray-800 mb-3 mt-6;
+}
+.prose-custom h4 {
+  @apply text-lg font-medium text-gray-700 mb-2 mt-4;
+}
+.prose-custom p {
+  @apply text-gray-600 leading-relaxed mb-4;
+}
+.prose-custom a {
+  @apply text-primary underline decoration-primary/30 transition-colors;
+}
+.prose-custom a:hover {
+  @apply text-accent decoration-accent;
+}
+.prose-custom code {
+  @apply bg-gray-100 text-pink-600 px-1.5 py-0.5 rounded text-sm font-mono;
+}
+.prose-custom pre {
+  @apply bg-gray-900 text-gray-100 p-4 rounded-xl overflow-x-auto mb-4 shadow-lg;
+}
+.prose-custom pre code {
+  @apply bg-transparent text-gray-100 p-0;
+}
+.prose-custom blockquote {
+  @apply border-l-4 border-primary bg-primary/5 pl-4 py-3 my-4 italic text-gray-600 rounded-r-lg;
+}
+.prose-custom ul,
+.prose-custom ol {
+  @apply mb-4 pl-6 text-gray-600;
+}
+.prose-custom ul {
+  @apply list-disc;
+}
+.prose-custom ol {
+  @apply list-decimal;
+}
+.prose-custom li {
+  @apply mb-2 leading-relaxed;
+}
+.prose-custom table {
+  @apply w-full border-collapse mb-4 rounded-lg overflow-hidden shadow-sm;
+}
+.prose-custom th {
+  @apply bg-primary text-white px-4 py-3 text-left font-semibold;
+}
+.prose-custom td {
+  @apply border-b border-gray-200 px-4 py-3 text-gray-600;
+}
+.prose-custom tr:nth-child(even) {
+  @apply bg-gray-50;
+}
+.prose-custom tr:hover {
+  @apply bg-primary/5;
+}
+.prose-custom img {
+  @apply max-w-full h-auto rounded-xl shadow-md my-4;
+}
+.prose-custom hr {
+  @apply border-none h-px bg-linear-to-r from-transparent via-gray-300 to-transparent my-8;
+}
+.prose-custom strong {
+  @apply font-semibold text-gray-800;
+}
+.prose-custom em {
+  @apply italic text-gray-700;
+}
