@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1e1b4b"/>
+      <stop offset="50%" style="stop-color:#4c1d95"/>
+      <stop offset="100%" style="stop-color:#1e1b4b"/>
+    </linearGradient>
+    <linearGradient id="primaryGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6366f1"/>
+      <stop offset="100%" style="stop-color:#8b5cf6"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#000" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bgGrad)"/>
+
+  <!-- Grid pattern -->
+  <g opacity="0.1">
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="white" stroke-width="1"/>
+    </pattern>
+    <rect width="1200" height="630" fill="url(#grid)"/>
+  </g>
+
+  <!-- App mockup - Editor panel -->
+  <g filter="url(#shadow)">
+    <rect x="80" y="140" width="480" height="350" rx="16" fill="#1f2937" opacity="0.9"/>
+    <rect x="80" y="140" width="480" height="40" rx="16" fill="#374151"/>
+    <rect x="80" y="164" width="480" height="16" fill="#374151"/>
+    <!-- Window dots -->
+    <circle cx="104" cy="160" r="6" fill="#ef4444"/>
+    <circle cx="124" cy="160" r="6" fill="#eab308"/>
+    <circle cx="144" cy="160" r="6" fill="#22c55e"/>
+    <!-- Code lines -->
+    <rect x="100" y="200" width="120" height="12" rx="2" fill="#8b5cf6" opacity="0.8"/>
+    <rect x="100" y="224" width="200" height="12" rx="2" fill="#6b7280"/>
+    <rect x="100" y="248" width="160" height="12" rx="2" fill="#6b7280"/>
+    <rect x="100" y="280" width="100" height="12" rx="2" fill="#8b5cf6" opacity="0.8"/>
+    <rect x="100" y="304" width="240" height="12" rx="2" fill="#6b7280"/>
+    <rect x="100" y="328" width="180" height="12" rx="2" fill="#6b7280"/>
+    <rect x="100" y="360" width="80" height="12" rx="2" fill="#8b5cf6" opacity="0.8"/>
+    <rect x="100" y="384" width="220" height="12" rx="2" fill="#6b7280"/>
+    <rect x="100" y="408" width="140" height="12" rx="2" fill="#6b7280"/>
+    <rect x="100" y="440" width="260" height="12" rx="2" fill="#6b7280"/>
+  </g>
+
+  <!-- App mockup - Preview panel -->
+  <g filter="url(#shadow)">
+    <rect x="590" y="140" width="480" height="350" rx="16" fill="white"/>
+    <rect x="590" y="140" width="480" height="40" rx="16" fill="#f9fafb"/>
+    <rect x="590" y="164" width="480" height="16" fill="#f9fafb"/>
+    <!-- Preview icon -->
+    <circle cx="614" cy="160" r="8" fill="none" stroke="#6366f1" stroke-width="2"/>
+    <circle cx="614" cy="160" r="3" fill="#6366f1"/>
+    <!-- Preview content -->
+    <rect x="620" y="200" width="180" height="20" rx="2" fill="#1f2937"/>
+    <rect x="620" y="200" width="180" height="20" rx="2" fill="#1f2937"/>
+    <rect x="620" y="228" width="400" height="2" fill="#6366f1"/>
+    <rect x="620" y="248" width="380" height="10" rx="2" fill="#9ca3af"/>
+    <rect x="620" y="266" width="340" height="10" rx="2" fill="#9ca3af"/>
+    <rect x="620" y="296" width="140" height="16" rx="2" fill="#374151"/>
+    <rect x="620" y="320" width="360" height="10" rx="2" fill="#9ca3af"/>
+    <rect x="620" y="338" width="300" height="10" rx="2" fill="#9ca3af"/>
+    <rect x="620" y="368" width="120" height="14" rx="2" fill="#374151"/>
+    <rect x="620" y="390" width="320" height="10" rx="2" fill="#9ca3af"/>
+    <rect x="620" y="408" width="280" height="10" rx="2" fill="#9ca3af"/>
+    <rect x="620" y="426" width="350" height="10" rx="2" fill="#9ca3af"/>
+    <rect x="620" y="456" width="200" height="10" rx="2" fill="#9ca3af"/>
+  </g>
+
+  <!-- Logo -->
+  <g>
+    <rect x="520" y="40" width="56" height="56" rx="14" fill="url(#primaryGrad)"/>
+    <path d="M536 76V52h6l7 12 7-12h6v24h-6V60l-7 11-7-11v16h-6z" fill="white"/>
+  </g>
+
+  <!-- Title -->
+  <text x="600" y="560" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="48" font-weight="700" fill="white" text-anchor="middle">Markdown Editor</text>
+  <text x="600" y="600" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="24" fill="#a5b4fc" text-anchor="middle">Write • Preview • Export</text>
+</svg>

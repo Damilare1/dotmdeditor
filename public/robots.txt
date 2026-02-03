@@ -1,0 +1,10 @@
+# Robots.txt for Markdown Editor
+
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://dotmdeditor.dev/sitemap.xml
+
+# Crawl-delay (optional, for politeness)
+Crawl-delay: 1

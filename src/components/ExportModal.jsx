@@ -2,20 +2,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { marked } from 'marked';
 import { saveAs } from 'file-saver';
 import {
-  Document,
-  Packer,
-  Paragraph,
-  TextRun,
-  HeadingLevel,
-  Table,
-  TableRow,
-  TableCell,
-  WidthType,
-  BorderStyle,
-  convertInchesToTwip,
-  ExternalHyperlink,
-} from 'docx';
-import {
   XMarkIcon,
   DocumentIcon,
   SpinnerIcon,

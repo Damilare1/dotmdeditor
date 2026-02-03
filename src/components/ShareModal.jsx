@@ -3,28 +3,13 @@ import {
   ShareIcon,
   XMarkIcon,
   ClipboardIcon,
-  LinkIcon,
   ArrowUpIcon,
   ExclamationTriangleIcon,
-  SpinnerIcon,
 } from './Icons';
-
-async function shortenUrl(longUrl) {
-  const response = await fetch(
-    `https://tinyurl.com/api-create.php?url=${encodeURIComponent(longUrl)}`
-  );
-  if (!response.ok) {
-    throw new Error('Failed to shorten URL');
-  }
-  return await response.text();
-}
 
 function ShareModal({ generateShareUrl, onClose, showToast }) {
   const [shareUrl, setShareUrl] = useState('');
   const [urlLength, setUrlLength] = useState(0);
-  const [shortUrl, setShortUrl] = useState('');
-  const [isShortening, setIsShortening] = useState(false);
-  const [shortenError, setShortenError] = useState('');
 
   useEffect(() => {
     const result = generateShareUrl();
@@ -52,40 +37,6 @@ function ShareModal({ generateShareUrl, onClose, showToast }) {
       showToast('Failed to copy link');
     }
   }, [shareUrl, showToast, onClose]);
-
-  const handleCopyShortUrl = useCallback(async () => {
-    try {
-      await navigator.clipboard.writeText(shortUrl);
-      showToast('Short link copied!');
-      onClose();
-    } catch (err) {
-      console.error('Failed to copy:', err);
-      showToast('Failed to copy');
-    }
-  }, [shortUrl, showToast, onClose]);
-
-  const handleShorten = useCallback(async () => {
-    if (!shareUrl) return;
-
-    setIsShortening(true);
-    setShortenError('');
-
-    try {
-      const shortened = await shortenUrl(shareUrl);
-      if (shortened && shortened.startsWith('http')) {
-        setShortUrl(shortened);
-      } else {
-        throw new Error('Invalid response');
-      }
-    } catch (err) {
-      console.error('Failed to shorten:', err);
-      setShortenError(
-        'Failed to shorten URL. The service may be unavailable or the URL is too long.'
-      );
-    }
-
-    setIsShortening(false);
-  }, [shareUrl]);
 
   const handleNativeShare = useCallback(async () => {
     try {
@@ -153,65 +104,6 @@ function ShareModal({ generateShareUrl, onClose, showToast }) {
               <ClipboardIcon className="w-5 h-5" />
               Copy
             </button>
-          </div>
-
-          {/* Shorten URL */}
-          <div className="mt-4 p-4 bg-gray-50 rounded-xl">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <LinkIcon className="w-5 h-5 text-accent" />
-                <span className="text-sm font-medium text-gray-700">
-                  Shorten URL
-                </span>
-              </div>
-              <button
-                onClick={handleShorten}
-                disabled={isShortening || !!shortUrl}
-                className="px-4 py-2 bg-accent hover:bg-accent/90 text-white rounded-lg text-sm font-medium transition-all hover:scale-105 active:scale-95 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-              >
-                {isShortening ? (
-                  <>
-                    <SpinnerIcon className="w-4 h-4 animate-spin" />
-                    Shortening...
-                  </>
-                ) : shortUrl ? (
-                  <>
-                    <LinkIcon className="w-4 h-4" />
-                    Done!
-                  </>
-                ) : (
-                  <>
-                    <LinkIcon className="w-4 h-4" />
-                    Shorten
-                  </>
-                )}
-              </button>
-            </div>
-            <p className="text-xs text-gray-500 mt-2">
-              Creates a short link using TinyURL (free service)
-            </p>
-
-            {shortUrl && (
-              <div className="mt-3 flex gap-2">
-                <input
-                  type="text"
-                  value={shortUrl}
-                  readOnly
-                  className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded-lg text-gray-700 text-sm font-medium focus:outline-none"
-                />
-                <button
-                  onClick={handleCopyShortUrl}
-                  className="px-3 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg text-sm font-medium transition-all hover:scale-105 active:scale-95 flex items-center gap-1"
-                >
-                  <ClipboardIcon className="w-4 h-4" />
-                  Copy
-                </button>
-              </div>
-            )}
-
-            {shortenError && (
-              <p className="mt-2 text-red-500 text-xs">{shortenError}</p>
-            )}
           </div>
 
           {/* Size Warning */}

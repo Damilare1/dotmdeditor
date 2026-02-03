@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { marked } from 'marked';
 import LZString from 'lz-string';
 import Header from './components/Header';
@@ -8,6 +8,7 @@ import ShareModal from './components/ShareModal';
 import ExportModal from './components/ExportModal';
 import ConfirmModal from './components/ConfirmModal';
 import Toast from './components/Toast';
+import { sampleDocumentation, quickStartGuide } from './sampleDocs';
 
 const STORAGE_KEY = 'markdown-editor-content';
 
@@ -23,33 +24,59 @@ function App() {
   const [showShareModal, setShowShareModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [showLoadSampleConfirm, setShowLoadSampleConfirm] = useState(false);
+  const [pendingSample, setPendingSample] = useState(null);
   const [toast, setToast] = useState({ show: false, message: '' });
   const [isMobile, setIsMobile] = useState(window.innerWidth < 640);
 
-  // Load content from URL or localStorage on mount
+  const showToast = useCallback((message) => {
+    setToast({ show: true, message });
+    setTimeout(() => setToast({ show: false, message: '' }), 2000);
+  }, []);
+
+  // Load content from URL or localStorage on mount and hash change
   useEffect(() => {
-    const hash = window.location.hash;
-    if (hash && hash.startsWith('#doc=')) {
-      try {
-        const compressed = hash.substring(5);
-        const decompressed = LZString.decompressFromEncodedURIComponent(compressed);
-        if (decompressed) {
-          setContent(decompressed);
-          localStorage.setItem(STORAGE_KEY, decompressed);
-          history.replaceState(null, '', window.location.pathname);
-          showToast('Document loaded from link');
-          return;
+    const loadFromHash = () => {
+      const hash = window.location.hash;
+      if (hash && hash.startsWith('#doc=')) {
+        try {
+          const compressed = hash.substring(5);
+          const decompressed = LZString.decompressFromEncodedURIComponent(compressed);
+          if (decompressed) {
+            setContent(decompressed);
+            localStorage.setItem(STORAGE_KEY, decompressed);
+            history.replaceState(null, '', window.location.pathname);
+            // Switch to preview on mobile when document is loaded from URL
+            if (window.innerWidth < 640) {
+              setActiveView('preview');
+            }
+            showToast('Document loaded from link');
+            return true;
+          }
+        } catch (e) {
+          console.error('Failed to load from URL:', e);
         }
-      } catch (e) {
-        console.error('Failed to load from URL:', e);
+      }
+      return false;
+    };
+
+    // Try loading from hash on mount
+    if (!loadFromHash()) {
+      // No hash found, try localStorage
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        setContent(saved);
       }
     }
 
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      setContent(saved);
-    }
-  }, []);
+    // Listen for hash changes (when user navigates to a shared link while on page)
+    const handleHashChange = () => {
+      loadFromHash();
+    };
+
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, [showToast]);
 
   // Save content to localStorage
   useEffect(() => {
@@ -63,11 +90,6 @@ function App() {
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  const showToast = useCallback((message) => {
-    setToast({ show: true, message });
-    setTimeout(() => setToast({ show: false, message: '' }), 2000);
   }, []);
 
   const handleCopy = useCallback(async () => {
@@ -91,6 +113,34 @@ function App() {
     showToast('Editor cleared');
   }, [showToast]);
 
+  const loadSampleContent = useCallback((sampleType) => {
+    const sampleContent = sampleType === 'documentation'
+      ? sampleDocumentation
+      : quickStartGuide;
+    setContent(sampleContent);
+    // Switch to preview on mobile when sample is loaded
+    if (window.innerWidth < 640) {
+      setActiveView('preview');
+    }
+    showToast(`Loaded ${sampleType === 'documentation' ? 'documentation' : 'quick start guide'}`);
+  }, [showToast]);
+
+  const handleLoadSample = useCallback((sampleType) => {
+    if (content.trim()) {
+      setPendingSample(sampleType);
+      setShowLoadSampleConfirm(true);
+    } else {
+      loadSampleContent(sampleType);
+    }
+  }, [content, loadSampleContent]);
+
+  const handleLoadSampleConfirm = useCallback(() => {
+    if (pendingSample) {
+      loadSampleContent(pendingSample);
+      setPendingSample(null);
+    }
+  }, [pendingSample, loadSampleContent]);
+
   const generateShareUrl = useCallback(() => {
     if (!content.trim()) {
       showToast('Nothing to share');
@@ -101,12 +151,10 @@ function App() {
     return { url, length: url.length };
   }, [content, showToast]);
 
-  const preview = useMemo(() => {
-    if (!content.trim()) {
-      return '<p class="text-gray-400 italic">Start typing to see the preview...</p>';
-    }
-    return marked.parse(content);
-  }, [content]);
+  // Compute preview HTML from markdown content
+  const preview = content.trim()
+    ? marked.parse(content)
+    : '<p class="text-gray-400 italic">Start typing to see the preview...</p>';
 
   const charCount = content.length;
   const wordCount = content.trim() ? content.trim().split(/\s+/).length : 0;
@@ -118,6 +166,7 @@ function App() {
         onCopy={handleCopy}
         onExport={() => setShowExportModal(true)}
         onClear={handleClearRequest}
+        onLoadSample={handleLoadSample}
         activeView={activeView}
         setActiveView={setActiveView}
         isMobile={isMobile}
@@ -164,6 +213,20 @@ function App() {
         confirmText="Clear"
         cancelText="Cancel"
         variant="danger"
+      />
+
+      <ConfirmModal
+        isOpen={showLoadSampleConfirm}
+        onClose={() => {
+          setShowLoadSampleConfirm(false);
+          setPendingSample(null);
+        }}
+        onConfirm={handleLoadSampleConfirm}
+        title="Load Sample Document"
+        message="This will replace your current content. Are you sure you want to continue?"
+        confirmText="Load Sample"
+        cancelText="Cancel"
+        variant="warning"
       />
 
       <Toast show={toast.show} message={toast.message} />

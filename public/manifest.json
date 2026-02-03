@@ -1,0 +1,48 @@
+{
+  "name": "Markdown Editor",
+  "short_name": "MD Editor",
+  "description": "Free online Markdown editor with live preview. Create, edit, and export Markdown documents.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1a1a2e",
+  "theme_color": "#6366f1",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "categories": ["productivity", "utilities"],
+  "screenshots": [
+    {
+      "src": "/og-image.png",
+      "sizes": "1200x630",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Markdown Editor Preview"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "New Document",
+      "short_name": "New",
+      "description": "Start a new markdown document",
+      "url": "/?new=true"
+    }
+  ],
+  "lang": "en",
+  "dir": "ltr"
+}
