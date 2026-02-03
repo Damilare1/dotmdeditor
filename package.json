@@ -10,6 +10,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "docx": "^9.5.1",
+    "file-saver": "^2.0.5",
+    "html2pdf.js": "^0.14.0",
     "lz-string": "^1.5.0",
     "marked": "^17.0.1",
     "react": "^19.2.0",

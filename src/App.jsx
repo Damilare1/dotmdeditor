@@ -5,6 +5,8 @@ import Header from './components/Header';
 import Editor from './components/Editor';
 import Preview from './components/Preview';
 import ShareModal from './components/ShareModal';
+import ExportModal from './components/ExportModal';
+import ConfirmModal from './components/ConfirmModal';
 import Toast from './components/Toast';
 
 const STORAGE_KEY = 'markdown-editor-content';
@@ -19,6 +21,8 @@ function App() {
   const [content, setContent] = useState('');
   const [activeView, setActiveView] = useState('editor');
   const [showShareModal, setShowShareModal] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [toast, setToast] = useState({ show: false, message: '' });
   const [isMobile, setIsMobile] = useState(window.innerWidth < 640);
 
@@ -76,25 +80,16 @@ function App() {
     }
   }, [content, showToast]);
 
-  const handleDownload = useCallback(() => {
-    const blob = new Blob([content], { type: 'text/markdown' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'document.md';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    showToast('Downloaded document.md');
-  }, [content, showToast]);
-
-  const handleClear = useCallback(() => {
-    if (content && window.confirm('Clear all content?')) {
-      setContent('');
-      showToast('Editor cleared');
+  const handleClearRequest = useCallback(() => {
+    if (content) {
+      setShowClearConfirm(true);
     }
-  }, [content, showToast]);
+  }, [content]);
+
+  const handleClearConfirm = useCallback(() => {
+    setContent('');
+    showToast('Editor cleared');
+  }, [showToast]);
 
   const generateShareUrl = useCallback(() => {
     if (!content.trim()) {
@@ -121,8 +116,8 @@ function App() {
       <Header
         onShare={() => setShowShareModal(true)}
         onCopy={handleCopy}
-        onDownload={handleDownload}
-        onClear={handleClear}
+        onExport={() => setShowExportModal(true)}
+        onClear={handleClearRequest}
         activeView={activeView}
         setActiveView={setActiveView}
         isMobile={isMobile}
@@ -151,6 +146,25 @@ function App() {
           showToast={showToast}
         />
       )}
+
+      {showExportModal && (
+        <ExportModal
+          content={content}
+          onClose={() => setShowExportModal(false)}
+          showToast={showToast}
+        />
+      )}
+
+      <ConfirmModal
+        isOpen={showClearConfirm}
+        onClose={() => setShowClearConfirm(false)}
+        onConfirm={handleClearConfirm}
+        title="Clear Editor"
+        message="Are you sure you want to clear all content? This action cannot be undone."
+        confirmText="Clear"
+        cancelText="Cancel"
+        variant="danger"
+      />
 
       <Toast show={toast.show} message={toast.message} />
     </div>
