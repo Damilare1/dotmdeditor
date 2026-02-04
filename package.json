@@ -1,7 +1,8 @@
 {
   "name": "markdown-editor-and-viewer",
+  "description": "A free online Markdown editor with live preview, rich text editing, and export to PDF/Word/Markdown. Share documents instantly via URL.",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
