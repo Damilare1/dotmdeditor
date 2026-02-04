@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { marked } from 'marked';
+import DOMPurify from 'dompurify';
 import LZString from 'lz-string';
 import Header from './components/Header';
 import Editor from './components/Editor';
@@ -151,9 +152,9 @@ function App() {
     return { url, length: url.length };
   }, [content, showToast]);
 
-  // Compute preview HTML from markdown content
+  // Compute preview HTML from markdown content (sanitized to prevent XSS)
   const preview = content.trim()
-    ? marked.parse(content)
+    ? DOMPurify.sanitize(marked.parse(content))
     : '<p class="text-gray-400 italic">Start typing to see the preview...</p>';
 
   const charCount = content.length;
@@ -183,7 +184,11 @@ function App() {
             />
           )}
           {(!isMobile || activeView === 'preview') && (
-            <Preview html={preview} />
+            <Preview
+              html={preview}
+              onContentChange={setContent}
+              isEditable={true}
+            />
           )}
         </div>
       </main>

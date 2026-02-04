@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { marked } from 'marked';
+import DOMPurify from 'dompurify';
 import { saveAs } from 'file-saver';
 import {
   XMarkIcon,
@@ -38,8 +39,8 @@ function ExportModal({ content, onClose, showToast }) {
     try {
       const html2pdf = (await import('html2pdf.js')).default;
 
-      // Parse markdown to HTML
-      const html = marked.parse(content);
+      // Parse markdown to HTML (sanitized to prevent XSS)
+      const html = DOMPurify.sanitize(marked.parse(content));
 
       // Create a styled container that matches the preview
       const container = document.createElement('div');
