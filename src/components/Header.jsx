@@ -89,6 +89,42 @@ function Header({
               </div>
             )}
 
+            {/* Desktop View Toggle */}
+            {!isMobile && (
+              <div className="flex bg-white/10 rounded-lg p-0.5">
+                <button
+                  onClick={() => setActiveView('editor')}
+                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                    activeView === 'editor'
+                      ? 'bg-primary text-white'
+                      : 'text-gray-300 hover:text-white'
+                  }`}
+                >
+                  Editor
+                </button>
+                <button
+                  onClick={() => setActiveView('split')}
+                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                    activeView === 'split'
+                      ? 'bg-primary text-white'
+                      : 'text-gray-300 hover:text-white'
+                  }`}
+                >
+                  Split
+                </button>
+                <button
+                  onClick={() => setActiveView('preview')}
+                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                    activeView === 'preview'
+                      ? 'bg-primary text-white'
+                      : 'text-gray-300 hover:text-white'
+                  }`}
+                >
+                  Preview
+                </button>
+              </div>
+            )}
+
             {/* Primary Actions - Hidden on mobile */}
             <button
               onClick={onShare}

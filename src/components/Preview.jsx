@@ -34,6 +34,7 @@ function ToolbarSeparator() {
 
 function Preview({ html, onContentChange, isEditable = false }) {
   const contentRef = useRef(null);
+  const scrollRef = useRef(null);
   const isEditingRef = useRef(false);
   const lastHtmlRef = useRef(html);
   const [showToolbar, setShowToolbar] = useState(false);
@@ -81,6 +82,24 @@ function Preview({ html, onContentChange, isEditable = false }) {
   const handleInput = useCallback(() => {
     syncToMarkdown();
   }, [syncToMarkdown]);
+
+  const handleClick = useCallback((e) => {
+    const anchor = e.target.closest('a');
+    if (!anchor) return;
+    const href = anchor.getAttribute('href');
+    if (!href?.startsWith('#')) return;
+    e.preventDefault();
+    const id = href.slice(1);
+    const target = contentRef.current?.querySelector(`#${CSS.escape(id)}`);
+    if (target && scrollRef.current) {
+      const containerRect = scrollRef.current.getBoundingClientRect();
+      const targetRect = target.getBoundingClientRect();
+      scrollRef.current.scrollBy({
+        top: targetRect.top - containerRect.top - 16,
+        behavior: 'smooth',
+      });
+    }
+  }, []);
 
   const handleFocus = useCallback(() => {
     if (isEditable) {
@@ -303,16 +322,22 @@ function Preview({ html, onContentChange, isEditable = false }) {
 
       {/* Content */}
       <div
-        ref={contentRef}
-        className={`flex-1 p-4 sm:p-8 overflow-y-auto scrollbar-thin prose-custom ${
-          isEditable ? 'focus:outline-none focus:ring-2 focus:ring-primary/20 focus:ring-inset cursor-text' : ''
-        }`}
-        contentEditable={isEditable}
-        suppressContentEditableWarning={true}
-        onInput={isEditable ? handleInput : undefined}
-        onFocus={handleFocus}
-        onBlur={isEditable ? handleBlur : undefined}
-      />
+        ref={scrollRef}
+        className="flex-1 overflow-y-auto scrollbar-thin"
+      >
+        <div
+          ref={contentRef}
+          className={`p-4 sm:p-8 prose-custom ${
+            isEditable ? 'focus:outline-none focus:ring-2 focus:ring-primary/20 focus:ring-inset cursor-text' : ''
+          }`}
+          contentEditable={isEditable}
+          suppressContentEditableWarning={true}
+          onInput={isEditable ? handleInput : undefined}
+          onFocus={handleFocus}
+          onBlur={isEditable ? handleBlur : undefined}
+          onClick={handleClick}
+        />
+      </div>
     </div>
   );
 }

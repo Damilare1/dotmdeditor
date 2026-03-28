@@ -19,9 +19,24 @@ marked.setOptions({
   gfm: true,
 });
 
+marked.use({
+  renderer: {
+    heading(token) {
+      const id = token.text
+        .toLowerCase()
+        .replace(/[*_`[\]()]/g, '')
+        .replace(/[^\w\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .trim();
+      const parsed = this.parser.parseInline(token.tokens);
+      return `<h${token.depth} id="${id}">${parsed}</h${token.depth}>\n`;
+    },
+  },
+});
+
 function App() {
   const [content, setContent] = useState('');
-  const [activeView, setActiveView] = useState('editor');
+  const [activeView, setActiveView] = useState(window.innerWidth < 640 ? 'editor' : 'split');
   const [showShareModal, setShowShareModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
@@ -175,7 +190,7 @@ function App() {
 
       <main className="max-w-screen-2xl mx-auto p-4 sm:p-6 h-[calc(100vh-80px)] sm:h-[calc(100vh-88px)]">
         <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 h-full">
-          {(!isMobile || activeView === 'editor') && (
+          {(isMobile ? activeView === 'editor' : activeView !== 'preview') && (
             <Editor
               content={content}
               setContent={setContent}
@@ -183,11 +198,11 @@ function App() {
               wordCount={wordCount}
             />
           )}
-          {(!isMobile || activeView === 'preview') && (
+          {(isMobile ? activeView === 'preview' : activeView !== 'editor') && (
             <Preview
               html={preview}
               onContentChange={setContent}
-              isEditable={true}
+              isEditable={activeView !== 'preview'}
             />
           )}
         </div>
