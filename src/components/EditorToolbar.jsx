@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 
-function EditorToolbar({ textareaRef, content, setContent }) {
+function EditorToolbar({ textareaRef, content, setContent, onUndo, onRedo, canUndo, canRedo }) {
   const insertText = useCallback((before, after = '', placeholder = '') => {
     const textarea = textareaRef.current;
     if (!textarea) return;
@@ -58,6 +58,31 @@ function EditorToolbar({ textareaRef, content, setContent }) {
   }, [textareaRef, content, setContent]);
 
   const tools = [
+    {
+      group: 'history',
+      items: [
+        {
+          icon: (
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a4 4 0 010 8H9m-6-8l3-3m-3 3l3 3" />
+            </svg>
+          ),
+          label: 'Undo (Ctrl+Z)',
+          action: onUndo,
+          disabled: !canUndo,
+        },
+        {
+          icon: (
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 10H11a4 4 0 000 8h4m6-8l-3-3m3 3l-3 3" />
+            </svg>
+          ),
+          label: 'Redo (Ctrl+Y)',
+          action: onRedo,
+          disabled: !canRedo,
+        },
+      ],
+    },
     {
       group: 'text',
       items: [
@@ -213,6 +238,47 @@ function EditorToolbar({ textareaRef, content, setContent }) {
         },
       ],
     },
+    {
+      group: 'math',
+      items: [
+        {
+          icon: <span className="text-sm font-serif italic">∑</span>,
+          label: 'Inline Math ($...$)',
+          action: () => insertText('$', '$', 'x^2 + y^2 = z^2'),
+        },
+        {
+          icon: <span className="text-sm font-serif italic">∫</span>,
+          label: 'Math Block ($$...$$)',
+          action: () => insertText('$$\n', '\n$$', '\\int_0^\\infty e^{-x^2} dx = \\frac{\\sqrt{\\pi}}{2}'),
+        },
+      ],
+    },
+    {
+      group: 'diagrams',
+      items: [
+        {
+          icon: (
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <rect x="2" y="9" width="6" height="4" rx="1" strokeWidth={2} />
+              <rect x="16" y="4" width="6" height="4" rx="1" strokeWidth={2} />
+              <rect x="16" y="16" width="6" height="4" rx="1" strokeWidth={2} />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11h4m0 0v-5h4M12 11v5h4" />
+            </svg>
+          ),
+          label: 'Mermaid Diagram',
+          action: () => insertText('```mermaid\n', '\n```', 'graph TD\n    A[Start] --> B[End]'),
+        },
+        {
+          icon: (
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v18M19 3v18M5 7h14M5 12h10M5 17h14" />
+            </svg>
+          ),
+          label: 'PlantUML Diagram',
+          action: () => insertText('```plantuml\n', '\n```', '@startuml\nAlice -> Bob: Hello\nBob --> Alice: Hi!\n@enduml'),
+        },
+      ],
+    },
   ];
 
   return (
@@ -228,7 +294,12 @@ function EditorToolbar({ textareaRef, content, setContent }) {
                 key={tool.label}
                 onClick={tool.action}
                 title={tool.label}
-                className={`p-1.5 rounded-md text-gray-400 hover:text-white hover:bg-white/10 transition-all ${tool.className || ''}`}
+                disabled={tool.disabled}
+                className={`p-1.5 rounded-md transition-all ${
+                  tool.disabled
+                    ? 'text-gray-600 cursor-not-allowed'
+                    : 'text-gray-400 hover:text-white hover:bg-white/10'
+                } ${tool.className || ''}`}
               >
                 {typeof tool.icon === 'string' ? (
                   <span className="w-5 h-5 flex items-center justify-center text-sm">

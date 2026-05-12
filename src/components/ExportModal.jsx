@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
+import mermaid from 'mermaid';
+import { renderMath } from './renderMath';
 import { saveAs } from 'file-saver';
 import {
   XMarkIcon,
@@ -40,7 +42,7 @@ function ExportModal({ content, onClose, showToast }) {
       const html2pdf = (await import('html2pdf.js')).default;
 
       // Parse markdown to HTML (sanitized to prevent XSS)
-      const html = DOMPurify.sanitize(marked.parse(content));
+      const html = DOMPurify.sanitize(marked.parse(content), { ADD_ATTR: ['data-source', 'data-math'] });
 
       // Create a styled container that matches the preview
       const container = document.createElement('div');
@@ -185,11 +187,48 @@ function ExportModal({ content, onClose, showToast }) {
             height: auto;
             border-radius: 8px;
           }
+          .mermaid-diagram, .plantuml-diagram {
+            text-align: center;
+            margin: 16px 0;
+          }
+          .mermaid-diagram svg {
+            max-width: 100%;
+            height: auto;
+          }
+          .plantuml-diagram img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 0;
+            box-shadow: none;
+          }
+          .math-block {
+            text-align: center;
+            margin: 16px 0;
+            overflow-x: auto;
+          }
+          .math-inline {
+            display: inline;
+          }
+          .katex-display {
+            overflow-x: auto;
+            overflow-y: hidden;
+          }
         </style>
         <div class="content">${html}</div>
       `;
 
       document.body.appendChild(container);
+
+      // Render math, then wait for KaTeX fonts to finish loading before capture
+      renderMath(container);
+      await document.fonts.ready;
+
+      // Render diagrams
+      const mermaidNodes = Array.from(container.querySelectorAll('.mermaid'));
+      if (mermaidNodes.length > 0) {
+        await mermaid.run({ nodes: mermaidNodes, suppressErrors: true });
+        await new Promise((resolve) => setTimeout(resolve, 400));
+      }
 
       const opt = {
         margin: [15, 15, 15, 15],

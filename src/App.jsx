@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 import LZString from 'lz-string';
+import mermaid from 'mermaid';
+import plantumlEncoder from 'plantuml-encoder';
 import Header from './components/Header';
 import Editor from './components/Editor';
 import Preview from './components/Preview';
@@ -13,11 +15,55 @@ import { sampleDocumentation, quickStartGuide } from './sampleDocs';
 
 const STORAGE_KEY = 'markdown-editor-content';
 
+mermaid.initialize({ startOnLoad: false, theme: 'default', securityLevel: 'strict' });
+
 // Configure marked
 marked.setOptions({
   breaks: true,
   gfm: true,
 });
+
+// Math extension — outputs placeholder elements so DOMPurify stays safe;
+// KaTeX renders into them after sanitization (see Preview + ExportModal).
+const mathExtension = {
+  extensions: [
+    {
+      name: 'blockMath',
+      level: 'block',
+      start(src) { return src.indexOf('$$'); },
+      tokenizer(src) {
+        const match = /^\$\$([\s\S]+?)\$\$/.exec(src);
+        if (match) {
+          return { type: 'blockMath', raw: match[0], text: match[1].trim() };
+        }
+      },
+      renderer(token) {
+        return `<div class="math-block" data-math="${encodeURIComponent(token.text)}"></div>\n`;
+      },
+    },
+    {
+      name: 'inlineMath',
+      level: 'inline',
+      start(src) {
+        let i = src.indexOf('$');
+        // Skip $$ so block math tokenizer takes it
+        while (i !== -1 && src[i + 1] === '$') i = src.indexOf('$', i + 2);
+        return i;
+      },
+      tokenizer(src) {
+        const match = /^\$(?!\$)((?:[^$\n]|\\\$)+?)\$(?!\$)/.exec(src);
+        if (match) {
+          return { type: 'inlineMath', raw: match[0], text: match[1].trim() };
+        }
+      },
+      renderer(token) {
+        return `<span class="math-inline" data-math="${encodeURIComponent(token.text)}"></span>`;
+      },
+    },
+  ],
+};
+
+marked.use(mathExtension);
 
 marked.use({
   renderer: {
@@ -30,6 +76,23 @@ marked.use({
         .trim();
       const parsed = this.parser.parseInline(token.tokens);
       return `<h${token.depth} id="${id}">${parsed}</h${token.depth}>\n`;
+    },
+    code(token) {
+      if (token.lang === 'mermaid') {
+        const safeText = token.text
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;');
+        const encoded = encodeURIComponent(token.text);
+        return `<div class="mermaid-diagram" data-source="${encoded}"><div class="mermaid">${safeText}</div></div>`;
+      }
+      if (token.lang === 'plantuml') {
+        const encoded = plantumlEncoder.encode(token.text);
+        const source = encodeURIComponent(token.text);
+        const url = `https://www.plantuml.com/plantuml/svg/${encoded}`;
+        return `<div class="plantuml-diagram" data-source="${source}"><img src="${url}" alt="PlantUML diagram" /></div>`;
+      }
+      return false;
     },
   },
 });
@@ -169,7 +232,7 @@ function App() {
 
   // Compute preview HTML from markdown content (sanitized to prevent XSS)
   const preview = content.trim()
-    ? DOMPurify.sanitize(marked.parse(content))
+    ? DOMPurify.sanitize(marked.parse(content), { ADD_ATTR: ['data-source', 'data-math'] })
     : '<p class="text-gray-400 italic">Start typing to see the preview...</p>';
 
   const charCount = content.length;

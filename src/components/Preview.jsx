@@ -1,6 +1,8 @@
 import { useRef, useCallback, useEffect, useState } from 'react';
 import TurndownService from 'turndown';
 import { gfm } from 'turndown-plugin-gfm';
+import mermaid from 'mermaid';
+import { renderMath } from './renderMath';
 import { EyeIcon } from './Icons';
 
 // Configure turndown for HTML to Markdown conversion
@@ -10,6 +12,45 @@ const turndownService = new TurndownService({
   bulletListMarker: '-',
 });
 turndownService.use(gfm);
+
+turndownService.addRule('mermaid-diagram', {
+  filter: (node) => node.nodeName === 'DIV' && node.classList.contains('mermaid-diagram'),
+  replacement: (content, node) => {
+    const source = decodeURIComponent(node.getAttribute('data-source') || '');
+    return source ? `\n\n\`\`\`mermaid\n${source}\n\`\`\`\n\n` : content;
+  },
+});
+
+turndownService.addRule('plantuml-diagram', {
+  filter: (node) => node.nodeName === 'DIV' && node.classList.contains('plantuml-diagram'),
+  replacement: (content, node) => {
+    const source = decodeURIComponent(node.getAttribute('data-source') || '');
+    return source ? `\n\n\`\`\`plantuml\n${source}\n\`\`\`\n\n` : content;
+  },
+});
+
+turndownService.addRule('math-block', {
+  filter: (node) => node.nodeName === 'DIV' && node.classList.contains('math-block'),
+  replacement: (content, node) => {
+    const src = decodeURIComponent(node.getAttribute('data-math') || '');
+    return src ? `\n\n$$\n${src}\n$$\n\n` : content;
+  },
+});
+
+turndownService.addRule('math-inline', {
+  filter: (node) => node.nodeName === 'SPAN' && node.classList.contains('math-inline'),
+  replacement: (content, node) => {
+    const src = decodeURIComponent(node.getAttribute('data-math') || '');
+    return src ? `$${src}$` : content;
+  },
+});
+
+function runMermaid(container) {
+  const nodes = Array.from(container.querySelectorAll('.mermaid'));
+  if (nodes.length > 0) {
+    mermaid.run({ nodes, suppressErrors: true }).catch(() => {});
+  }
+}
 
 // Formatting toolbar button component
 function ToolbarButton({ onClick, active, title, children }) {
@@ -50,6 +91,8 @@ function Preview({ html, onContentChange, isEditable = false }) {
     if (html !== lastHtmlRef.current) {
       contentRef.current.innerHTML = html;
       lastHtmlRef.current = html;
+      renderMath(contentRef.current);
+      runMermaid(contentRef.current);
     }
   }, [html]);
 
@@ -57,6 +100,8 @@ function Preview({ html, onContentChange, isEditable = false }) {
   useEffect(() => {
     if (contentRef.current) {
       contentRef.current.innerHTML = html;
+      renderMath(contentRef.current);
+      runMermaid(contentRef.current);
     }
   }, []);
 

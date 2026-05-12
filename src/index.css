@@ -110,3 +110,22 @@
 .prose-custom em {
   @apply italic text-gray-700;
 }
+.prose-custom .mermaid-diagram,
+.prose-custom .plantuml-diagram {
+  @apply flex justify-center my-6;
+}
+.prose-custom .mermaid-diagram svg {
+  @apply max-w-full h-auto;
+}
+.prose-custom .plantuml-diagram img {
+  @apply max-w-full h-auto shadow-none rounded-none;
+}
+.prose-custom .math-block {
+  @apply flex justify-center my-6 overflow-x-auto;
+}
+.prose-custom .math-inline {
+  @apply inline;
+}
+.prose-custom .katex-display {
+  @apply overflow-x-auto overflow-y-hidden;
+}

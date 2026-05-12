@@ -107,10 +107,16 @@ function ShareModal({ generateShareUrl, onClose, showToast }) {
           </div>
 
           {/* Size Warning */}
-          {urlLength > 2000 && (
+          {urlLength > 64000 && (
+            <p className="mt-3 text-red-600 text-sm flex items-center gap-2">
+              <ExclamationTriangleIcon className="w-4 h-4" />
+              <span>URL exceeds 64 KB — may be clipped in Firefox. Consider exporting as a file instead.</span>
+            </p>
+          )}
+          {urlLength > 32000 && urlLength <= 64000 && (
             <p className="mt-3 text-amber-600 text-sm flex items-center gap-2">
               <ExclamationTriangleIcon className="w-4 h-4" />
-              <span>Large document - link may not work in all browsers</span>
+              <span>Large link ({Math.round(urlLength / 1024)} KB) — works in all modern browsers.</span>
             </p>
           )}
 
