@@ -10,6 +10,15 @@ import {
   GitHubIcon,
 } from './Icons';
 
+function FolderIcon({ className }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+        d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" />
+    </svg>
+  );
+}
+
 const GITHUB_URL = 'https://github.com/Damilare1/dotmdeditor';
 
 // Three dots menu icon
@@ -21,16 +30,53 @@ function EllipsisIcon({ className }) {
   );
 }
 
+function SaveIcon({ className }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+        d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+    </svg>
+  );
+}
+
+function LockClosedIcon({ className }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+        d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+    </svg>
+  );
+}
+
+function LockOpenIcon({ className }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+        d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
+    </svg>
+  );
+}
+
 function Header({
   onShare,
   onCopy,
   onExport,
   onClear,
   onLoadSample,
+  onMyDocuments,
+  onSaveChanges,
+  onLockToggle,
+  hasEditAccess,
+  isDocLocked,
+  isSavingChanges,
+  isTogglingLock,
   activeView,
   setActiveView,
   isMobile,
 }) {
+  // Tabs are restricted when the doc is locked and this user is not the owner.
+  const tabsLocked = isDocLocked && !hasEditAccess;
+
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef(null);
 
@@ -67,13 +113,18 @@ function Header({
             {isMobile && (
               <div className="flex bg-white/10 rounded-lg p-0.5">
                 <button
-                  onClick={() => setActiveView('editor')}
-                  className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
-                    activeView === 'editor'
+                  onClick={() => !tabsLocked && setActiveView('editor')}
+                  disabled={tabsLocked}
+                  title={tabsLocked ? 'Document is locked' : undefined}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
+                    tabsLocked
+                      ? 'opacity-40 cursor-not-allowed text-gray-400'
+                      : activeView === 'editor'
                       ? 'bg-primary text-white'
                       : 'text-gray-300 hover:text-white'
                   }`}
                 >
+                  {tabsLocked && <LockClosedIcon className="w-2.5 h-2.5" />}
                   Editor
                 </button>
                 <button
@@ -93,23 +144,33 @@ function Header({
             {!isMobile && (
               <div className="flex bg-white/10 rounded-lg p-0.5">
                 <button
-                  onClick={() => setActiveView('editor')}
-                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
-                    activeView === 'editor'
+                  onClick={() => !tabsLocked && setActiveView('editor')}
+                  disabled={tabsLocked}
+                  title={tabsLocked ? 'Document is locked' : undefined}
+                  className={`flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                    tabsLocked
+                      ? 'opacity-40 cursor-not-allowed text-gray-400'
+                      : activeView === 'editor'
                       ? 'bg-primary text-white'
                       : 'text-gray-300 hover:text-white'
                   }`}
                 >
+                  {tabsLocked && <LockClosedIcon className="w-2.5 h-2.5" />}
                   Editor
                 </button>
                 <button
-                  onClick={() => setActiveView('split')}
-                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
-                    activeView === 'split'
+                  onClick={() => !tabsLocked && setActiveView('split')}
+                  disabled={tabsLocked}
+                  title={tabsLocked ? 'Document is locked' : undefined}
+                  className={`flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                    tabsLocked
+                      ? 'opacity-40 cursor-not-allowed text-gray-400'
+                      : activeView === 'split'
                       ? 'bg-primary text-white'
                       : 'text-gray-300 hover:text-white'
                   }`}
                 >
+                  {tabsLocked && <LockClosedIcon className="w-2.5 h-2.5" />}
                   Split
                 </button>
                 <button
@@ -125,7 +186,57 @@ function Header({
               </div>
             )}
 
-            {/* Primary Actions - Hidden on mobile */}
+            {hasEditAccess && (
+              <div className="hidden sm:flex items-center gap-1.5">
+                {/* Save — only available when document is unlocked */}
+                {!isDocLocked && (
+                  <button
+                    onClick={onSaveChanges}
+                    disabled={isSavingChanges}
+                    className="flex items-center gap-1.5 px-3 py-2 bg-amber-500 hover:bg-amber-600 disabled:opacity-60 text-white rounded-lg text-sm font-medium transition-all"
+                    title="Save changes"
+                  >
+                    <SaveIcon className="w-4 h-4" />
+                    <span>{isSavingChanges ? 'Saving…' : 'Save'}</span>
+                  </button>
+                )}
+
+                {/* Lock — shown when document is not locked */}
+                {!isDocLocked && (
+                  <button
+                    onClick={onLockToggle}
+                    disabled={isTogglingLock}
+                    title="Lock document — prevents all edits until unlocked"
+                    className="flex items-center gap-1.5 px-3 py-2 bg-white/10 hover:bg-white/20 text-gray-300 hover:text-white rounded-lg text-sm font-medium transition-all disabled:opacity-60"
+                  >
+                    <LockOpenIcon className="w-4 h-4" />
+                    <span>{isTogglingLock ? 'Locking…' : 'Lock'}</span>
+                  </button>
+                )}
+
+                {/* Unlock — shown when document is locked; only the owner will succeed */}
+                {isDocLocked && (
+                  <button
+                    onClick={onLockToggle}
+                    disabled={isTogglingLock}
+                    title="Unlock document (owner only)"
+                    className="flex items-center gap-1.5 px-3 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium transition-all disabled:opacity-60"
+                  >
+                    <LockClosedIcon className="w-4 h-4" />
+                    <span>{isTogglingLock ? 'Unlocking…' : 'Locked'}</span>
+                  </button>
+                )}
+              </div>
+            )}
+
+            <button
+              onClick={onMyDocuments}
+              className="hidden sm:flex items-center gap-1.5 px-3 py-2 bg-white/10 hover:bg-white/20 text-gray-300 hover:text-white rounded-lg text-sm font-medium transition-all"
+            >
+              <FolderIcon className="w-4 h-4" />
+              <span>My Docs</span>
+            </button>
+
             <button
               onClick={onShare}
               className="hidden sm:flex items-center gap-1.5 px-3 py-2 bg-linear-to-r from-primary to-accent hover:opacity-90 text-white rounded-lg text-sm font-medium transition-all shadow-lg shadow-primary/25"
@@ -160,6 +271,46 @@ function Header({
                 <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-2xl overflow-hidden z-50 animate-modal-in">
                   {/* Primary Actions - Visible only on mobile */}
                   <div className="p-1.5 sm:hidden">
+                    {/* Save — only when unlocked and user has edit access */}
+                    {hasEditAccess && !isDocLocked && (
+                      <button
+                        onClick={() => { onSaveChanges(); setShowMenu(false); }}
+                        disabled={isSavingChanges}
+                        className="w-full flex items-center gap-3 px-3 py-2 text-left text-amber-600 hover:bg-amber-50 rounded-lg transition-colors disabled:opacity-50"
+                      >
+                        <SaveIcon className="w-4 h-4" />
+                        <span className="text-sm font-medium">{isSavingChanges ? 'Saving…' : 'Save Changes'}</span>
+                      </button>
+                    )}
+                    {/* Lock — only when not locked */}
+                    {hasEditAccess && !isDocLocked && (
+                      <button
+                        onClick={() => { onLockToggle(); setShowMenu(false); }}
+                        disabled={isTogglingLock}
+                        className="w-full flex items-center gap-3 px-3 py-2 text-left text-gray-700 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
+                      >
+                        <LockOpenIcon className="w-4 h-4" />
+                        <span className="text-sm font-medium">{isTogglingLock ? 'Locking…' : 'Lock Document'}</span>
+                      </button>
+                    )}
+                    {/* Unlock — only when locked; server enforces owner-only */}
+                    {hasEditAccess && isDocLocked && (
+                      <button
+                        onClick={() => { onLockToggle(); setShowMenu(false); }}
+                        disabled={isTogglingLock}
+                        className="w-full flex items-center gap-3 px-3 py-2 text-left text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                      >
+                        <LockClosedIcon className="w-4 h-4" />
+                        <span className="text-sm font-medium">{isTogglingLock ? 'Unlocking…' : 'Unlock Document'}</span>
+                      </button>
+                    )}
+                    <button
+                      onClick={() => { onMyDocuments(); setShowMenu(false); }}
+                      className="w-full flex items-center gap-3 px-3 py-2 text-left text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                    >
+                      <FolderIcon className="w-4 h-4 text-primary" />
+                      <span className="text-sm font-medium">My Documents</span>
+                    </button>
                     <button
                       onClick={() => {
                         onShare();

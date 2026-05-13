@@ -10,9 +10,14 @@ import {
   SpinnerIcon,
 } from './Icons';
 
-function ExportModal({ content, onClose, showToast }) {
+function ExportModal({ content, title, onClose, showToast }) {
+  // Sanitise the title for use as a filename (strip characters unsafe in paths).
+  const defaultFilename = title
+    ? title.replace(/[/\\?%*:|"<>]/g, '').trim().slice(0, 100) || 'document'
+    : 'document';
+
   const [isExporting, setIsExporting] = useState(null);
-  const [filename, setFilename] = useState('document');
+  const [filename, setFilename] = useState(defaultFilename);
 
   useEffect(() => {
     const handleEscape = (e) => {

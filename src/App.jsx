@@ -10,12 +10,51 @@ import Preview from './components/Preview';
 import ShareModal from './components/ShareModal';
 import ExportModal from './components/ExportModal';
 import ConfirmModal from './components/ConfirmModal';
+import MyDocumentsModal from './components/MyDocumentsModal';
 import Toast from './components/Toast';
 import { sampleDocumentation, quickStartGuide } from './sampleDocs';
+import { loadDocument, getStoredToken, getEditToken, storeEditToken, updateDocument, lockDocument } from './documents';
 
 const STORAGE_KEY = 'markdown-editor-content';
+const TITLE_KEY   = 'markdown-editor-title';
+
+// Derive a display title from content when the user hasn't set one explicitly.
+function deriveTitleFromContent(content) {
+  if (!content.trim()) return '';
+  const heading = content.match(/^#\s+(.+)/m);
+  if (heading) return heading[1].trim().replace(/[*_`[\]]/g, '');
+  return content.trim().split('\n')[0].replace(/^#+\s*/, '').trim().slice(0, 100);
+}
+
+function TitleInput({ value, onChange, placeholder }) {
+  return (
+    <div className="pb-3 sm:pb-4">
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder || 'Untitled document'}
+        maxLength={200}
+        className="w-full bg-transparent text-white text-2xl sm:text-3xl font-bold placeholder-white/20 focus:outline-none border-b border-white/10 focus:border-white/30 pb-2 transition-colors"
+      />
+    </div>
+  );
+}
 
 mermaid.initialize({ startOnLoad: false, theme: 'default', securityLevel: 'strict' });
+
+const GA_ID = import.meta.env.VITE_GA_ID;
+if (GA_ID) {
+  const s = document.createElement('script');
+  s.async = true;
+  s.src = `https://www.googletagmanager.com/gtag/js?id=${GA_ID}`;
+  document.head.appendChild(s);
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { window.dataLayer.push(arguments); }
+  window.gtag = gtag;
+  gtag('js', new Date());
+  gtag('config', GA_ID);
+}
 
 // Configure marked
 marked.setOptions({
@@ -99,6 +138,7 @@ marked.use({
 
 function App() {
   const [content, setContent] = useState('');
+  const [title, setTitle] = useState(() => localStorage.getItem(TITLE_KEY) || '');
   const [activeView, setActiveView] = useState(window.innerWidth < 640 ? 'editor' : 'split');
   const [showShareModal, setShowShareModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
@@ -106,6 +146,14 @@ function App() {
   const [showLoadSampleConfirm, setShowLoadSampleConfirm] = useState(false);
   const [pendingSample, setPendingSample] = useState(null);
   const [toast, setToast] = useState({ show: false, message: '' });
+  const [cloudSlug, setCloudSlug] = useState(null);
+  const [editToken, setEditToken] = useState(null);
+  const [isDocLocked, setIsDocLocked] = useState(false);
+  const [isSavingChanges, setIsSavingChanges] = useState(false);
+  const [isTogglingLock, setIsTogglingLock] = useState(false);
+  const [isLoadingCloud, setIsLoadingCloud] = useState(false);
+  const [authToken, setAuthToken] = useState(() => getStoredToken());
+  const [showMyDocumentsModal, setShowMyDocumentsModal] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 640);
 
   const showToast = useCallback((message) => {
@@ -125,10 +173,7 @@ function App() {
             setContent(decompressed);
             localStorage.setItem(STORAGE_KEY, decompressed);
             history.replaceState(null, '', window.location.pathname);
-            // Switch to preview on mobile when document is loaded from URL
-            if (window.innerWidth < 640) {
-              setActiveView('preview');
-            }
+            if (window.innerWidth < 640) setActiveView('preview');
             showToast('Document loaded from link');
             return true;
           }
@@ -139,28 +184,52 @@ function App() {
       return false;
     };
 
-    // Try loading from hash on mount
-    if (!loadFromHash()) {
-      // No hash found, try localStorage
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        setContent(saved);
-      }
+    // Check for cloud document slug in query params first (?doc=<slug>&edit=<token>)
+    const params = new URLSearchParams(window.location.search);
+    const slug = params.get('doc');
+    if (slug) {
+      // If the URL carries an edit token, persist it and activate edit mode.
+      const urlEditToken = params.get('edit');
+      if (urlEditToken) storeEditToken(slug, urlEditToken);
+
+      setIsLoadingCloud(true);
+      loadDocument(slug)
+        .then(({ content: loaded, title: loadedTitle, locked }) => {
+          setContent(loaded);
+          setTitle(loadedTitle || '');
+          setCloudSlug(slug);
+          setEditToken(getEditToken(slug));
+          setIsDocLocked(!!locked);
+          localStorage.setItem(STORAGE_KEY, loaded);
+          localStorage.setItem(TITLE_KEY, loadedTitle || '');
+          history.replaceState(null, '', window.location.pathname);
+          if (window.innerWidth < 640) setActiveView('preview');
+          showToast('Document loaded');
+        })
+        .catch(() => showToast('Could not load document — link may be invalid'))
+        .finally(() => setIsLoadingCloud(false));
+      return;
     }
 
-    // Listen for hash changes (when user navigates to a shared link while on page)
-    const handleHashChange = () => {
-      loadFromHash();
-    };
+    // Fall back to hash URL or localStorage
+    if (!loadFromHash()) {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) setContent(saved);
+    }
 
+    const handleHashChange = () => { loadFromHash(); };
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, [showToast]);
 
-  // Save content to localStorage
+  // Persist content and title to localStorage
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, content);
   }, [content]);
+
+  useEffect(() => {
+    localStorage.setItem(TITLE_KEY, title);
+  }, [title]);
 
   // Handle window resize
   useEffect(() => {
@@ -189,6 +258,10 @@ function App() {
 
   const handleClearConfirm = useCallback(() => {
     setContent('');
+    setTitle('');
+    setCloudSlug(null);
+    setEditToken(null);
+    setIsDocLocked(false);
     showToast('Editor cleared');
   }, [showToast]);
 
@@ -220,6 +293,58 @@ function App() {
     }
   }, [pendingSample, loadSampleContent]);
 
+  // Called by ShareModal after a successful cloud save.
+  const handleCloudSave = useCallback((slug, tok) => {
+    setCloudSlug(slug);
+    setEditToken(tok);
+  }, []);
+
+  const handleLockToggle = useCallback(async () => {
+    if (!cloudSlug || !editToken) return;
+    const nextLocked = !isDocLocked;
+    setIsTogglingLock(true);
+    try {
+      await lockDocument(cloudSlug, nextLocked, editToken);
+      setIsDocLocked(nextLocked);
+      showToast(nextLocked ? 'Document locked' : 'Document unlocked');
+    } catch (err) {
+      showToast(err.message || 'Failed to update lock');
+    } finally {
+      setIsTogglingLock(false);
+    }
+  }, [cloudSlug, editToken, isDocLocked, showToast]);
+
+  const handleSaveChanges = useCallback(async () => {
+    if (!cloudSlug || !editToken) return;
+    setIsSavingChanges(true);
+    try {
+      await updateDocument(cloudSlug, content, editToken, title || deriveTitleFromContent(content));
+      showToast('Changes saved');
+    } catch (err) {
+      showToast(err.message || 'Save failed');
+    } finally {
+      setIsSavingChanges(false);
+    }
+  }, [cloudSlug, editToken, content, title, showToast]);
+
+  const handleLoadCloudDocument = useCallback((slug) => {
+    setIsLoadingCloud(true);
+    loadDocument(slug)
+      .then(({ content: loaded, title: loadedTitle, locked }) => {
+        setContent(loaded);
+        setTitle(loadedTitle || '');
+        setCloudSlug(slug);
+        setEditToken(getEditToken(slug));
+        setIsDocLocked(!!locked);
+        localStorage.setItem(STORAGE_KEY, loaded);
+        localStorage.setItem(TITLE_KEY, loadedTitle || '');
+        if (window.innerWidth < 640) setActiveView('preview');
+        showToast('Document loaded');
+      })
+      .catch(() => showToast('Could not load document'))
+      .finally(() => setIsLoadingCloud(false));
+  }, [showToast]);
+
   const generateShareUrl = useCallback(() => {
     if (!content.trim()) {
       showToast('Nothing to share');
@@ -230,6 +355,16 @@ function App() {
     return { url, length: url.length };
   }, [content, showToast]);
 
+  // Derived — computed before effects that depend on them
+  const hasEditAccess = !!(cloudSlug && editToken);
+
+  // When a locked document is loaded by someone without edit access, force preview mode.
+  useEffect(() => {
+    if (isDocLocked && !hasEditAccess) {
+      setActiveView('preview');
+    }
+  }, [isDocLocked, hasEditAccess]);
+
   // Compute preview HTML from markdown content (sanitized to prevent XSS)
   const preview = content.trim()
     ? DOMPurify.sanitize(marked.parse(content), { ADD_ATTR: ['data-source', 'data-math'] })
@@ -237,22 +372,46 @@ function App() {
 
   const charCount = content.length;
   const wordCount = content.trim() ? content.trim().split(/\s+/).length : 0;
+  const activeTitle = title || deriveTitleFromContent(content);
 
   return (
     <div className="bg-linear-to-br from-slate-900 via-purple-900 to-slate-900 min-h-screen">
+      {isLoadingCloud && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-3 text-white">
+            <svg className="w-8 h-8 animate-spin text-primary" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+            </svg>
+            <span className="text-sm font-medium">Loading document…</span>
+          </div>
+        </div>
+      )}
       <Header
         onShare={() => setShowShareModal(true)}
         onCopy={handleCopy}
         onExport={() => setShowExportModal(true)}
         onClear={handleClearRequest}
         onLoadSample={handleLoadSample}
+        onMyDocuments={() => setShowMyDocumentsModal(true)}
+        onSaveChanges={handleSaveChanges}
+        onLockToggle={handleLockToggle}
+        hasEditAccess={hasEditAccess}
+        isDocLocked={isDocLocked}
+        isSavingChanges={isSavingChanges}
+        isTogglingLock={isTogglingLock}
         activeView={activeView}
         setActiveView={setActiveView}
         isMobile={isMobile}
       />
 
-      <main className="max-w-screen-2xl mx-auto p-4 sm:p-6 h-[calc(100vh-80px)] sm:h-[calc(100vh-88px)]">
-        <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 h-full">
+      <main className="max-w-screen-2xl mx-auto px-4 sm:px-6 pt-4 sm:pt-5 pb-4 sm:pb-6 flex flex-col h-[calc(100vh-80px)] sm:h-[calc(100vh-88px)]">
+        <TitleInput
+          value={title}
+          onChange={setTitle}
+          placeholder={deriveTitleFromContent(content) || 'Untitled document'}
+        />
+        <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 flex-1 min-h-0">
           {(isMobile ? activeView === 'editor' : activeView !== 'preview') && (
             <Editor
               content={content}
@@ -273,15 +432,32 @@ function App() {
 
       {showShareModal && (
         <ShareModal
+          content={content}
+          title={activeTitle}
           generateShareUrl={generateShareUrl}
+          cloudSlug={cloudSlug}
+          editToken={editToken}
+          onCloudSave={handleCloudSave}
+          authToken={authToken}
+          onAuthToken={setAuthToken}
           onClose={() => setShowShareModal(false)}
           showToast={showToast}
+        />
+      )}
+
+      {showMyDocumentsModal && (
+        <MyDocumentsModal
+          authToken={authToken}
+          onAuthToken={setAuthToken}
+          onLoadDocument={handleLoadCloudDocument}
+          onClose={() => setShowMyDocumentsModal(false)}
         />
       )}
 
       {showExportModal && (
         <ExportModal
           content={content}
+          title={activeTitle}
           onClose={() => setShowExportModal(false)}
           showToast={showToast}
         />
