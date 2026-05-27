@@ -110,15 +110,63 @@
 .prose-custom em {
   @apply italic text-gray-700;
 }
-.prose-custom .mermaid-diagram,
+.prose-custom .mermaid-diagram {
+  @apply my-6;
+  position: relative;
+}
 .prose-custom .plantuml-diagram {
   @apply flex justify-center my-6;
 }
-.prose-custom .mermaid-diagram svg {
-  @apply max-w-full h-auto;
-}
 .prose-custom .plantuml-diagram img {
   @apply max-w-full h-auto shadow-none rounded-none;
+}
+.mermaid-pan-area {
+  width: 100%;
+  overflow: hidden;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+  -webkit-user-select: none;
+}
+.mermaid-pan-area svg {
+  display: block;
+  max-width: none !important;
+}
+.mermaid-controls {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  z-index: 10;
+}
+.mermaid-controls button {
+  width: 28px;
+  height: 28px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px;
+  color: #374151;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  transition: background 0.15s;
+}
+.mermaid-controls button:hover {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+}
+.mermaid-controls button svg {
+  width: 14px;
+  height: 14px;
+  pointer-events: none;
 }
 .prose-custom .math-block {
   @apply flex justify-center my-6 overflow-x-auto;

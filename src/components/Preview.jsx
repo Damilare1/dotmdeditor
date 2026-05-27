@@ -45,10 +45,112 @@ turndownService.addRule('math-inline', {
   },
 });
 
-function runMermaid(container) {
+function setupMermaidZoom(container) {
+  container.querySelectorAll('.mermaid-diagram:not([data-zoom])').forEach(diagram => {
+    const svg = diagram.querySelector('svg');
+    if (!svg) return;
+
+    diagram.setAttribute('data-zoom', '1');
+
+    const mermaidEl = svg.parentElement;
+    let scale = 1, tx = 0, ty = 0;
+    let dragging = false, ox = 0, oy = 0;
+
+    const inner = document.createElement('div');
+    inner.className = 'mermaid-pan-area';
+    diagram.insertBefore(inner, mermaidEl);
+    inner.appendChild(mermaidEl);
+
+    const ctrl = document.createElement('div');
+    ctrl.className = 'mermaid-controls';
+    ctrl.innerHTML = `
+      <button data-a="in" title="Zoom in">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="3" x2="8" y2="13"/><line x1="3" y1="8" x2="13" y2="8"/></svg>
+      </button>
+      <button data-a="fit" title="Fit diagram">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3,6 3,3 6,3"/><polyline points="10,3 13,3 13,6"/><polyline points="13,10 13,13 10,13"/><polyline points="6,13 3,13 3,10"/></svg>
+      </button>
+      <button data-a="out" title="Zoom out">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="8" x2="13" y2="8"/></svg>
+      </button>
+    `;
+    diagram.appendChild(ctrl);
+
+    function apply() {
+      mermaidEl.style.transformOrigin = '0 0';
+      mermaidEl.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+    }
+
+    function fit() {
+      const aw = inner.clientWidth || 600;
+      const svgRect = svg.getBoundingClientRect();
+      const sw = svgRect.width || parseFloat(svg.getAttribute('width')) || 600;
+      const sh = svgRect.height || parseFloat(svg.getAttribute('height')) || 300;
+      scale = Math.min(1, (aw - 32) / sw);
+      tx = Math.max(8, (aw - sw * scale) / 2);
+      ty = 8;
+      inner.style.height = `${Math.max(Math.min(sh * scale + 56, 560), 120)}px`;
+      apply();
+    }
+
+    inner.addEventListener('wheel', e => {
+      e.preventDefault();
+      const r = inner.getBoundingClientRect();
+      const cx = e.clientX - r.left, cy = e.clientY - r.top;
+      const f = e.deltaY < 0 ? 1.12 : 1 / 1.12;
+      const ns = Math.min(Math.max(scale * f, 0.08), 10);
+      tx = cx - (cx - tx) * (ns / scale);
+      ty = cy - (cy - ty) * (ns / scale);
+      scale = ns;
+      apply();
+    }, { passive: false });
+
+    inner.addEventListener('pointerdown', e => {
+      if (e.button !== 0) return;
+      dragging = true;
+      ox = e.clientX - tx;
+      oy = e.clientY - ty;
+      inner.setPointerCapture(e.pointerId);
+      inner.style.cursor = 'grabbing';
+    });
+
+    inner.addEventListener('pointermove', e => {
+      if (!dragging) return;
+      tx = e.clientX - ox;
+      ty = e.clientY - oy;
+      apply();
+    });
+
+    ['pointerup', 'pointercancel'].forEach(ev =>
+      inner.addEventListener(ev, () => {
+        dragging = false;
+        inner.style.cursor = 'grab';
+      })
+    );
+
+    ctrl.addEventListener('click', e => {
+      const a = e.target.closest('[data-a]')?.dataset.a;
+      if (!a) return;
+      if (a === 'fit') { fit(); return; }
+      const cx = inner.clientWidth / 2, cy = inner.clientHeight / 2;
+      const f = a === 'in' ? 1.3 : 1 / 1.3;
+      const ns = Math.min(Math.max(scale * f, 0.08), 10);
+      tx = cx - (cx - tx) * (ns / scale);
+      ty = cy - (cy - ty) * (ns / scale);
+      scale = ns;
+      apply();
+    });
+
+    inner.style.cursor = 'grab';
+    requestAnimationFrame(fit);
+  });
+}
+
+async function runMermaid(container) {
   const nodes = Array.from(container.querySelectorAll('.mermaid'));
   if (nodes.length > 0) {
-    mermaid.run({ nodes, suppressErrors: true }).catch(() => {});
+    await mermaid.run({ nodes, suppressErrors: true }).catch(() => {});
+    setupMermaidZoom(container);
   }
 }
 
