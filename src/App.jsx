@@ -4,6 +4,7 @@ import DOMPurify from 'dompurify';
 import LZString from 'lz-string';
 import mermaid from 'mermaid';
 import plantumlEncoder from 'plantuml-encoder';
+import hljs from 'highlight.js';
 import Header from './components/Header';
 import Editor from './components/Editor';
 import Preview from './components/Preview';
@@ -131,7 +132,16 @@ marked.use({
         const url = `https://www.plantuml.com/plantuml/svg/${encoded}`;
         return `<div class="plantuml-diagram" data-source="${source}"><img src="${url}" alt="PlantUML diagram" /></div>`;
       }
-      return false;
+      // Syntax-highlight all other fenced code blocks. hljs emits
+      // `<span class="hljs-*">` tokens (kept by DOMPurify); token colors come
+      // from the imported github-dark theme (see index.css) and match the
+      // export styles in ExportModal.
+      const lang = (token.lang || '').trim().split(/\s+/)[0].toLowerCase();
+      const { value, language } = lang && hljs.getLanguage(lang)
+        ? hljs.highlight(token.text, { language: lang })
+        : hljs.highlightAuto(token.text);
+      const cls = language ? ` language-${language}` : '';
+      return `<pre><code class="hljs${cls}">${value}</code></pre>\n`;
     },
   },
 });

@@ -138,6 +138,19 @@ function ExportModal({ content, title, onClose, showToast }) {
             padding: 0;
             font-size: inherit;
           }
+          /* Syntax highlighting (github-dark palette, matches the live preview) */
+          .hljs { background: transparent; color: #c9d1d9; }
+          .hljs-comment, .hljs-quote { color: #8b949e; font-style: italic; }
+          .hljs-keyword, .hljs-selector-tag, .hljs-literal, .hljs-doctag,
+          .hljs-name, .hljs-deletion { color: #ff7b72; }
+          .hljs-string, .hljs-regexp, .hljs-addition, .hljs-meta-string { color: #a5d6ff; }
+          .hljs-number, .hljs-symbol, .hljs-bullet, .hljs-meta { color: #79c0ff; }
+          .hljs-title, .hljs-title.function_, .hljs-section { color: #d2a8ff; }
+          .hljs-attr, .hljs-attribute, .hljs-variable, .hljs-template-variable,
+          .hljs-selector-attr, .hljs-selector-pseudo { color: #79c0ff; }
+          .hljs-type, .hljs-class .hljs-title, .hljs-built_in, .hljs-selector-class { color: #ffa657; }
+          .hljs-emphasis { font-style: italic; }
+          .hljs-strong { font-weight: 600; }
           blockquote {
             border-left: 4px solid #6366f1;
             background: rgba(99, 102, 241, 0.05);

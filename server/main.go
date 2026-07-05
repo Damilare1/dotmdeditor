@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"crypto/rand"
+	"crypto/subtle"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -29,12 +30,12 @@ import (
 // ── Constants ────────────────────────────────────────────────────────────────
 
 const (
-	maxContentBytes  = 512 * 1024 // 512 KB
-	cacheTTL         = 5 * time.Hour
-	slugLen          = 8
-	slugAlphabet     = "abcdefghijklmnopqrstuvwxyz0123456789"
-	rateLimitWindow  = time.Minute
-	rateLimitMax     = 10
+	maxContentBytes = 512 * 1024 // 512 KB
+	cacheTTL        = 5 * time.Hour
+	slugLen         = 8
+	slugAlphabet    = "abcdefghijklmnopqrstuvwxyz0123456789"
+	rateLimitWindow = time.Minute
+	rateLimitMax    = 10
 )
 
 // ── Models ───────────────────────────────────────────────────────────────────
@@ -165,17 +166,29 @@ func cacheSet(ctx context.Context, rdb *redis.Client, d *Document) {
 
 // ── Rate limiting ─────────────────────────────────────────────────────────────
 
-// realIP extracts the client IP, preferring proxy-set headers over RemoteAddr.
+// trustProxyHeaders controls whether realIP honours client-supplied
+// X-Real-IP / X-Forwarded-For headers. It is enabled at startup only when
+// TRUST_PROXY_HEADERS=true, i.e. when the service runs behind a reverse proxy
+// that overwrites those headers. When false we use the TCP peer address, which
+// cannot be spoofed — otherwise an attacker could forge a unique header per
+// request and bypass the rate limiter entirely (e.g. to brute-force OTPs).
+var trustProxyHeaders bool
+
+// realIP extracts the client IP. Proxy-set headers are honoured only when the
+// operator has declared (via TRUST_PROXY_HEADERS) that a trusted proxy sits in
+// front and sanitises them; otherwise only the unspoofable RemoteAddr is used.
 func realIP(r *http.Request) string {
-	if v := r.Header.Get("X-Real-IP"); v != "" {
-		if ip := net.ParseIP(strings.TrimSpace(v)); ip != nil {
-			return ip.String()
+	if trustProxyHeaders {
+		if v := r.Header.Get("X-Real-IP"); v != "" {
+			if ip := net.ParseIP(strings.TrimSpace(v)); ip != nil {
+				return ip.String()
+			}
 		}
-	}
-	if v := r.Header.Get("X-Forwarded-For"); v != "" {
-		// X-Forwarded-For may be a comma-separated list; the leftmost is the client.
-		if ip := net.ParseIP(strings.TrimSpace(strings.SplitN(v, ",", 2)[0])); ip != nil {
-			return ip.String()
+		if v := r.Header.Get("X-Forwarded-For"); v != "" {
+			// X-Forwarded-For may be a comma-separated list; the leftmost is the client.
+			if ip := net.ParseIP(strings.TrimSpace(strings.SplitN(v, ",", 2)[0])); ip != nil {
+				return ip.String()
+			}
 		}
 	}
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
@@ -224,6 +237,7 @@ func rateLimiter(rdb *redis.Client) func(http.Handler) http.Handler {
 			w.Header().Set("X-RateLimit-Window", strconv.Itoa(windowSecs))
 
 			if count > rateLimitMax {
+				logSecurity(r, "rate_limited", "method", r.Method, "path", r.URL.Path, "count", count)
 				w.Header().Set("Retry-After", strconv.Itoa(windowSecs))
 				writeError(w, http.StatusTooManyRequests,
 					fmt.Sprintf("rate limit exceeded — max %d requests per minute", rateLimitMax))
@@ -245,6 +259,48 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 
 func writeError(w http.ResponseWriter, status int, msg string) {
 	writeJSON(w, status, map[string]string{"error": msg})
+}
+
+// tokenMatch compares two secret tokens in constant time to avoid leaking how
+// many leading characters matched via response-timing differences.
+func tokenMatch(got, want string) bool {
+	return subtle.ConstantTimeCompare([]byte(got), []byte(want)) == 1
+}
+
+// maskEmail returns a privacy-preserving identifier for audit logs: the local
+// part is masked down to its last two characters while the domain is kept in
+// clear, so events stay correlatable (and domain-targeted attacks visible)
+// without recording the user's full address. The mask uses one '*' per hidden
+// character so the original local-part length stays apparent.
+// Example: "alice@gmail.com" -> "***ce@gmail.com".
+func maskEmail(email string) string {
+	at := strings.LastIndexByte(email, '@')
+	if at < 0 {
+		return strings.Repeat("*", len(email)) // not a well-formed address — don't leak it
+	}
+	local, domain := email[:at], email[at:]
+	keep := 2
+	if len(local) < keep {
+		keep = len(local)
+	}
+	return strings.Repeat("*", len(local)-keep) + local[len(local)-keep:] + domain
+}
+
+// logSecurity emits a single greppable audit line for a security-relevant event
+// (auth attempts, permission grants/denials, rate limiting). Lines look like:
+//
+//	[SECURITY] event=login_success ip=203.0.113.7 email=a1b2c3d4@b.com user_id=42
+//
+// Filter the log stream on the "[SECURITY]" prefix to feed a SIEM/alerting rule.
+// Never pass secrets (OTP codes, edit/session tokens) or raw emails as values —
+// only identifiers and outcomes belong here; use hashEmail for addresses.
+func logSecurity(r *http.Request, event string, kv ...any) {
+	var sb strings.Builder
+	fmt.Fprintf(&sb, "[SECURITY] event=%s ip=%s", event, realIP(r))
+	for i := 0; i+1 < len(kv); i += 2 {
+		fmt.Fprintf(&sb, " %v=%v", kv[i], kv[i+1])
+	}
+	log.Print(sb.String())
 }
 
 // ── Handlers ──────────────────────────────────────────────────────────────────
@@ -390,6 +446,7 @@ func handleUpdate(pool *pgxpool.Pool, rdb *redis.Client) http.HandlerFunc {
 
 		// Only document owner can edit a locked document.
 		if locked && !documentOwner {
+			logSecurity(r, "doc_edit_denied", "slug", slug, "reason", "locked")
 			writeError(w, http.StatusLocked, "this document is locked and cannot be edited — unlock it first")
 			return
 		}
@@ -397,7 +454,8 @@ func handleUpdate(pool *pgxpool.Pool, rdb *redis.Client) http.HandlerFunc {
 		// Authorise: valid X-Edit-Token OR authenticated owner.
 		editToken := r.Header.Get("X-Edit-Token")
 
-		if !documentOwner && editToken != storedToken {
+		if !documentOwner && !tokenMatch(editToken, storedToken) {
+			logSecurity(r, "doc_edit_denied", "slug", slug, "reason", "bad_edit_token")
 			writeError(w, http.StatusForbidden, "you do not have permission to edit this document")
 			return
 		}
@@ -413,6 +471,12 @@ func handleUpdate(pool *pgxpool.Pool, rdb *redis.Client) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "failed to update document")
 			return
 		}
+
+		authMethod := "edit_token"
+		if documentOwner {
+			authMethod = "session_owner"
+		}
+		logSecurity(r, "doc_edit", "slug", slug, "auth", authMethod)
 
 		// Bust the cache so the next load reflects the new content.
 		rdb.Del(r.Context(), cacheKey(slug))
@@ -459,9 +523,15 @@ func handlePatch(pool *pgxpool.Pool, rdb *redis.Client) http.HandlerFunc {
 			sessionOwner = true
 		}
 
+		action := "unlock"
+		if *body.Locked {
+			action = "lock"
+		}
+
 		if *body.Locked {
 			// Locking: edit-token holder or session owner may lock.
-			if editToken != storedToken && !sessionOwner {
+			if !tokenMatch(editToken, storedToken) && !sessionOwner {
+				logSecurity(r, "doc_lock_denied", "slug", slug, "action", action, "reason", "bad_edit_token")
 				writeError(w, http.StatusForbidden, "you do not have permission to lock this document")
 				return
 			}
@@ -470,10 +540,12 @@ func handlePatch(pool *pgxpool.Pool, rdb *redis.Client) http.HandlerFunc {
 			// For anonymous documents (no user_id) the edit token is the only credential,
 			// so fall back to that so the original saver is never permanently locked out.
 			if ownerID != nil && !sessionOwner {
+				logSecurity(r, "doc_lock_denied", "slug", slug, "action", action, "reason", "not_owner")
 				writeError(w, http.StatusForbidden, "only the document owner can unlock this document — sign in to continue")
 				return
 			}
-			if ownerID == nil && editToken != storedToken {
+			if ownerID == nil && !tokenMatch(editToken, storedToken) {
+				logSecurity(r, "doc_lock_denied", "slug", slug, "action", action, "reason", "bad_edit_token")
 				writeError(w, http.StatusForbidden, "you do not have permission to unlock this document")
 				return
 			}
@@ -486,6 +558,12 @@ func handlePatch(pool *pgxpool.Pool, rdb *redis.Client) http.HandlerFunc {
 			writeError(w, http.StatusInternalServerError, "failed to update document")
 			return
 		}
+
+		authMethod := "edit_token"
+		if sessionOwner {
+			authMethod = "session_owner"
+		}
+		logSecurity(r, "doc_"+action, "slug", slug, "auth", authMethod)
 
 		rdb.Del(r.Context(), cacheKey(slug))
 
@@ -529,6 +607,13 @@ func main() {
 	redisURL := env("REDIS_URL", "redis://localhost:6380")
 	port := env("PORT", "8080")
 	allowedOrigin := env("ALLOWED_ORIGIN", "http://localhost:5173")
+
+	// Only honour X-Forwarded-For / X-Real-IP when a trusted proxy sits in front
+	// and overwrites them. Otherwise clients can spoof these to evade rate limits.
+	trustProxyHeaders = env("TRUST_PROXY_HEADERS", "false") == "true"
+	if trustProxyHeaders {
+		log.Println("rate limiter: trusting X-Forwarded-For/X-Real-IP — ensure your proxy strips inbound copies of these headers")
+	}
 
 	// ── PostgreSQL ──
 	pool, err := pgxpool.New(ctx, dbURL)
